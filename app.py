@@ -84,7 +84,7 @@ def get_stock(ticker):
 def analyze():
     try:
         d = request.json
-        client = Groq(api_key=GROQ_API_KEY)
+        client = Groq(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)
 
         prompt = f"""You are a stock risk analyst. Analyze this data and give a concise risk management report.
 
@@ -112,4 +112,14 @@ Max 220 words. No guaranteed predictions."""
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=5000)
+```
+
+Also add `gunicorn` to `requirements.txt` — edit that file and add:
+```
+gunicorn
+```
+
+Then on Render, make sure **Start Command** is set to:
+```
+gunicorn app:app
