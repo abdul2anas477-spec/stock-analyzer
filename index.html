@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Risk Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0f;color:#e8e4d9;font-family:'Syne',sans-serif;min-height:100vh}
+  .app{max-width:900px;margin:0 auto;padding:2rem 1.25rem 4rem}
+  .header-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.15em;color:#6b6a63;text-transform:uppercase;margin-bottom:.5rem}
+  .header-title{font-size:2rem;font-weight:700;color:#e8e4d9;line-height:1.1;margin-bottom:2rem}
+  .header-title span{color:#c8f05a}
+  .search-row{display:flex;gap:10px;margin-bottom:2rem}
+  .ticker-input{flex:1;background:#13131a;border:1px solid #2a2a35;border-radius:10px;padding:.75rem 1rem;font-family:'DM Mono',monospace;font-size:1rem;color:#e8e4d9;text-transform:uppercase;letter-spacing:.1em;outline:none;transition:border-color .2s}
+  .ticker-input:focus{border-color:#c8f05a}
+  .ticker-input::placeholder{color:#3a3a45;text-transform:none;letter-spacing:0}
+  .btn{background:#c8f05a;color:#0a0a0f;border:none;border-radius:10px;padding:.75rem 1.75rem;font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+  .btn:hover{opacity:.85}
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem}
+  .card{background:#13131a;border:1px solid #1e1e28;border-radius:14px;padding:1.25rem;margin-bottom:1rem}
+  .card-sm{background:#13131a;border:1px solid #1e1e28;border-radius:12px;padding:1rem}
+  .lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;color:#4a4a55;text-transform:uppercase;margin-bottom:.4rem}
+  .val{font-size:1.3rem;font-weight:700;color:#e8e4d9}
+  .val.up{color:#c8f05a}
+  .val.dn{color:#f05a5a}
+  .sub{font-family:'DM Mono',monospace;font-size:11px;color:#4a4a55;margin-top:.25rem}
+  .signal-row{display:flex;align-items:center;gap:1.5rem;padding-bottom:1.25rem;margin-bottom:1.25rem;border-bottom:1px solid #1e1e28}
+  .badge{width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;letter-spacing:.06em;flex-shrink:0}
+  .badge.BUY{background:rgba(200,240,90,.1);color:#c8f05a;border:2px solid rgba(200,240,90,.35)}
+  .badge.SELL{background:rgba(240,90,90,.1);color:#f05a5a;border:2px solid rgba(240,90,90,.35)}
+  .badge.HOLD{background:rgba(240,180,60,.1);color:#f0b43c;border:2px solid rgba(240,180,60,.35)}
+  .signal-text h3{font-size:1rem;font-weight:600;color:#e8e4d9;margin-bottom:.3rem}
+  .signal-text p{font-size:.85rem;color:#6b6a63;line-height:1.5}
+  .risk-wrap{margin-bottom:.9rem}
+  .risk-lbl-row{display:flex;justify-content:space-between;margin-bottom:.35rem;font-size:.78rem;color:#4a4a55;font-family:'DM Mono',monospace}
+  .risk-bg{height:7px;background:#1e1e28;border-radius:99px;overflow:hidden}
+  .risk-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+  .chart-wrap{position:relative;height:220px;width:100%}
+  .ai-section{background:#13131a;border:1px solid #1e1e28;border-radius:14px;padding:1.5rem;margin-top:1rem}
+  .ai-title{font-size:.75rem;font-weight:600;color:#c8f05a;font-family:'DM Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem}
+  .ai-content{font-size:.875rem;line-height:1.85;color:#b8b4a9}
+  .ai-content strong{color:#e8e4d9;font-weight:600}
+  .disclaimer{margin-top:1rem;padding:.7rem;background:#0a0a0f;border-radius:8px;font-size:.72rem;color:#3a3a45;font-family:'DM Mono',monospace}
+  .error{background:rgba(240,90,90,.07);border:1px solid rgba(240,90,90,.2);border-radius:10px;padding:.9rem 1rem;color:#f07a7a;font-size:.875rem;margin-bottom:1rem;display:none}
+  .section-title{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;color:#4a4a55;text-transform:uppercase;margin-bottom:.75rem}
+  .empty{text-align:center;padding:4rem 2rem}
+  .empty h2{font-size:1rem;color:#4a4a55;margin-bottom:.5rem;font-weight:500}
+  .empty p{font-size:.78rem;color:#2e2e3a;font-family:'DM Mono',monospace}
+  .dots{display:inline-flex;gap:4px}
+  .dots span{width:5px;height:5px;background:#c8f05a;border-radius:50%;animation:blink 1.2s ease-in-out infinite}
+  .dots span:nth-child(2){animation-delay:.2s}
+  .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.15}40%{opacity:1}}
+  #results{display:none}
+  #loading{display:none;text-align:center;padding:3rem}
+  #loading p{color:#4a4a55;font-size:.85rem;margin-top:1rem;font-family:'DM Mono',monospace}
+  #aiLoading{display:none;color:#4a4a55;font-size:.875rem;display:flex;align-items:center;gap:8px}
+  @media(max-width:600px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}.signal-row{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header-label">Market Intelligence</div>
+  <h1 class="header-title">Stock <span>Risk</span> Analyzer</h1>
+
+  <div class="search-row">
+    <input id="tickerInput" class="ticker-input" placeholder="Ticker — e.g. AAPL, TSLA, RELIANCE.NS, TCS.NS" maxlength="15"/>
+    <button class="btn" id="analyzeBtn" onclick="analyze()">Analyze</button>
+  </div>
+
+  <div class="error" id="errorMsg"></div>
+
+  <div id="emptyState" class="empty">
+    <h2>Enter a stock ticker to begin</h2>
+    <p>Supports US stocks, Indian stocks (.NS suffix), and more</p>
+  </div>
+
+  <div id="loading">
+    <div class="dots"><span></span><span></span><span></span></div>
+    <p id="loadingText">Fetching market data…</p>
+  </div>
+
+  <div id="results">
+    <!-- Company + Price -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="lbl">Company</div>
+        <div class="val" id="companyName" style="font-size:1.05rem;line-height:1.3"></div>
+        <div class="sub" id="symbolExchange"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Current Price</div>
+        <div class="val" id="currentPrice"></div>
+        <div class="sub" id="priceChange"></div>
+      </div>
+    </div>
+
+    <!-- Indicators -->
+    <div class="grid-4">
+      <div class="card-sm">
+        <div class="lbl">RSI (14)</div>
+        <div class="val" id="rsiVal" style="font-size:1.1rem"></div>
+        <div class="sub" id="rsiStatus"></div>
+      </div>
+      <div class="card-sm">
+        <div class="lbl">MA 20</div>
+        <div class="val" id="ma20Val" style="font-size:1.1rem"></div>
+        <div class="sub" id="ma20Status"></div>
+      </div>
+      <div class="card-sm">
+        <div class="lbl">MA 50</div>
+        <div class="val" id="ma50Val" style="font-size:1.1rem"></div>
+        <div class="sub" id="ma50Status"></div>
+      </div>
+      <div class="card-sm">
+        <div class="lbl">Volatility</div>
+        <div class="val" id="volVal" style="font-size:1.1rem"></div>
+        <div class="sub">Annual est.</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card">
+      <div class="section-title">3-Month Price Chart</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+
+    <!-- Risk bars -->
+    <div class="card">
+      <div class="section-title" style="margin-bottom:1rem">Risk Gauges</div>
+      <div class="risk-wrap">
+        <div class="risk-lbl-row"><span>Volatility Risk</span><span id="volRiskPct">0%</span></div>
+        <div class="risk-bg"><div class="risk-fill" id="volRiskBar" style="width:0%"></div></div>
+      </div>
+      <div class="risk-wrap">
+        <div class="risk-lbl-row"><span>RSI Momentum Risk</span><span id="rsiRiskPct">0%</span></div>
+        <div class="risk-bg"><div class="risk-fill" id="rsiRiskBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- AI Analysis -->
+    <div class="ai-section">
+      <div class="ai-title">AI Risk Analysis</div>
+      <div id="aiLoading" style="display:none;align-items:center;gap:8px;color:#4a4a55;font-size:.875rem">
+        <div class="dots"><span></span><span></span><span></span></div>
+        Analyzing with Claude AI…
+      </div>
+      <div id="aiContent" style="display:none">
+        <div class="signal-row">
+          <div class="badge" id="signalBadge">—</div>
+          <div class="signal-text">
+            <h3 id="signalTitle">Signal: —</h3>
+            <p>Based on 3-month price history and technical indicators</p>
+          </div>
+        </div>
+        <div class="ai-content" id="aiText"></div>
+        <div class="disclaimer">⚠ For educational purposes only. Not financial advice. Always do your own research.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let chartInstance = null;
+
+function riskColor(v) {
+  if (v <= 25) return "#c8f05a";
+  if (v <= 60) return "#f0b43c";
+  return "#f05a5a";
+}
+
+function setBar(barId, pctId, val) {
+  const pct = Math.min(100, Math.round(val));
+  document.getElementById(barId).style.width = pct + "%";
+  document.getElementById(barId).style.background = riskColor(pct);
+  document.getElementById(pctId).textContent = pct + "%";
+}
+
+function extractSignal(text) {
+  const m = text.match(/\*\*Signal:\*\*\s*(BUY|SELL|HOLD)/i) || text.match(/Signal:\s*(BUY|SELL|HOLD)/i);
+  return m ? m[1].toUpperCase() : "HOLD";
+}
+
+function formatAI(text) {
+  return text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br/>");
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorMsg");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function hideError() {
+  document.getElementById("errorMsg").style.display = "none";
+}
+
+function drawChart(prices, currency) {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const labels = prices.map(p => p.date);
+  const vals   = prices.map(p => p.price);
+  const color  = vals[vals.length-1] >= vals[0] ? "#c8f05a" : "#f05a5a";
+  const ctx    = document.getElementById("priceChart").getContext("2d");
+
+  chartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: vals, borderColor: color, borderWidth: 2,
+        pointRadius: 0, tension: 0.3, fill: true,
+        backgroundColor: (ctx2) => {
+          const g = ctx2.chart.ctx.createLinearGradient(0,0,0,220);
+          g.addColorStop(0, color+"28"); g.addColorStop(1, color+"00");
+          return g;
+        }
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor:"#1e1e28", titleColor:"#6b6a63",
+          bodyColor:"#e8e4d9", borderColor:"#2a2a35", borderWidth:1,
+          callbacks: { label: c => ` ${currency} ${c.parsed.y.toFixed(2)}` }
+        }
+      },
+      scales: {
+        x: { grid:{color:"#1a1a22"}, ticks:{color:"#4a4a55",font:{family:"DM Mono",size:10},maxTicksLimit:8} },
+        y: { grid:{color:"#1a1a22"}, ticks:{color:"#4a4a55",font:{family:"DM Mono",size:10},callback:v=>currency+" "+v.toFixed(0)} }
+      }
+    }
+  });
+}
+
+async function analyze() {
+  const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+  if (!ticker) return;
+
+  hideError();
+  document.getElementById("emptyState").style.display = "none";
+  document.getElementById("results").style.display = "none";
+  document.getElementById("loading").style.display = "block";
+  document.getElementById("loadingText").textContent = "Fetching market data…";
+  document.getElementById("analyzeBtn").disabled = true;
+  document.getElementById("aiLoading").style.display = "none";
+  document.getElementById("aiContent").style.display = "none";
+
+  try {
+    // Step 1: Fetch stock data from our Flask backend
+    const res = await fetch(`/api/stock/${ticker}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to fetch stock data");
+
+    // Render stock data
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("results").style.display = "block";
+
+    const isUp = data.changePct >= 0;
+    document.getElementById("companyName").textContent = data.name;
+    document.getElementById("symbolExchange").textContent = `${data.symbol} · ${data.exchange}`;
+
+    const priceEl = document.getElementById("currentPrice");
+    priceEl.textContent = `${data.currency} ${data.currentPrice.toFixed(2)}`;
+    priceEl.className = "val " + (isUp ? "up" : "dn");
+
+    const chgEl = document.getElementById("priceChange");
+    chgEl.textContent = `${isUp?"▲":"▼"} ${Math.abs(data.changePct).toFixed(2)}% today`;
+    chgEl.style.color = isUp ? "#c8f05a" : "#f05a5a";
+
+    // RSI
+    const rsi = data.rsi;
+    const rsiEl = document.getElementById("rsiVal");
+    rsiEl.textContent = rsi ?? "—";
+    rsiEl.className = "val " + (rsi > 70 ? "dn" : rsi < 30 ? "up" : "");
+    document.getElementById("rsiStatus").textContent = rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : "Neutral";
+
+    // MA20
+    const ma20El = document.getElementById("ma20Val");
+    ma20El.textContent = data.ma20 ? `${data.currency} ${data.ma20}` : "—";
+    ma20El.className = "val " + (data.ma20 ? (data.currentPrice > data.ma20 ? "up" : "dn") : "");
+    document.getElementById("ma20Status").textContent = data.ma20 ? (data.currentPrice > data.ma20 ? "Above ↑" : "Below ↓") : "—";
+
+    // MA50
+    const ma50El = document.getElementById("ma50Val");
+    ma50El.textContent = data.ma50 ? `${data.currency} ${data.ma50}` : "—";
+    ma50El.className = "val " + (data.ma50 ? (data.currentPrice > data.ma50 ? "up" : "dn") : "");
+    document.getElementById("ma50Status").textContent = data.ma50 ? (data.currentPrice > data.ma50 ? "Above ↑" : "Below ↓") : "—";
+
+    // Volatility
+    const volEl = document.getElementById("volVal");
+    volEl.textContent = data.volatility ? `${data.volatility}%` : "—";
+    volEl.className = "val " + (data.volatility > 50 ? "dn" : data.volatility < 20 ? "up" : "");
+
+    // Risk bars
+    const volRisk = Math.min(100, Math.round((data.volatility || 0) / 80 * 100));
+    const rsiRisk = rsi > 70 ? Math.round((rsi-70)/30*100) : rsi < 30 ? Math.round((30-rsi)/30*100) : 15;
+    setBar("volRiskBar", "volRiskPct", volRisk);
+    setBar("rsiRiskBar", "rsiRiskPct", rsiRisk);
+
+    // Chart
+    drawChart(data.prices, data.currency);
+
+    // Step 2: AI analysis
+    document.getElementById("aiLoading").style.display = "flex";
+    const aiRes = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const aiData = await aiRes.json();
+    document.getElementById("aiLoading").style.display = "none";
+
+    if (aiData.error) throw new Error(aiData.error);
+
+    const signal = extractSignal(aiData.analysis);
+    const badge = document.getElementById("signalBadge");
+    badge.textContent = signal;
+    badge.className = "badge " + signal;
+    document.getElementById("signalTitle").textContent = "Signal: " + signal;
+    document.getElementById("aiText").innerHTML = formatAI(aiData.analysis);
+    document.getElementById("aiContent").style.display = "block";
+
+  } catch(e) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("results").style.display = "none";
+    document.getElementById("emptyState").style.display = "block";
+    showError(e.message || "Something went wrong. Check your ticker and try again.");
+  } finally {
+    document.getElementById("analyzeBtn").disabled = false;
+  }
+}
+
+document.getElementById("tickerInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") analyze();
+  e.target.value = e.target.value.toUpperCase();
+});
+</script>
+</body>
+</html>
